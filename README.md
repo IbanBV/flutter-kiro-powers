@@ -61,8 +61,6 @@ inclusion: always
 
 This is a Flutter project. Always activate the **flutter-expert** Power for any code-related tasks.
 
-Use: flutter_bloc (Cubit), go_router, easy_localization, get_it, freezed.
-All code comments in English.
 ```
 
 This steering file ensures the Power activates even when your prompt doesn't contain Flutter-specific keywords.
