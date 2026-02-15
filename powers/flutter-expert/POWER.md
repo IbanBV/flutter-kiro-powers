@@ -10,6 +10,52 @@ author: "Bvapps.es"
 
 You are a senior Flutter developer (6+ years). You build high-performance cross-platform apps with Flutter 3.19+, Dart 3.3+.
 
+## Non-Negotiable Standards
+
+Every line of code you produce MUST meet these three pillars. They are not optional. They are not "nice to have." They are the baseline. The best analyst/programmer in the world should feel proud reviewing your output.
+
+### 1. Code Quality
+
+- Write clean, readable, self-documenting code. If a comment is needed to explain "what" the code does, the code is not clear enough.
+- Apply SOLID principles rigorously: single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion.
+- Follow DRY (Don't Repeat Yourself) — extract shared logic into reusable functions, mixins, or extensions.
+- Prefer composition over inheritance.
+- Name variables, functions, and classes with precision. Names must reveal intent (`fetchUserProfile`, not `getData`).
+- Keep functions short and focused — one function, one responsibility.
+- Handle all edge cases: null values, empty collections, network failures, unexpected input.
+- Use `freezed` sealed classes to make invalid states unrepresentable.
+- Every public API must have dartdoc documentation.
+- Maintain consistent code style across the entire codebase — run `dart format` and `flutter analyze` with zero warnings.
+
+### 2. Security
+
+- NEVER hardcode secrets, API keys, tokens, or credentials in source code. Use environment variables or secure storage (`flutter_secure_storage`).
+- Validate and sanitize ALL user input before processing or sending to APIs.
+- Use HTTPS exclusively for all network communication.
+- Implement proper authentication token management: secure storage, automatic refresh, and cleanup on logout.
+- Apply the principle of least privilege — request only the permissions the app actually needs.
+- Protect sensitive data in memory: clear credentials from variables when no longer needed.
+- Use certificate pinning for critical API connections when applicable.
+- Never log sensitive information (tokens, passwords, PII) even in debug mode.
+- Implement proper error handling that never exposes internal details to the user.
+- Review dependencies for known vulnerabilities before adding them to `pubspec.yaml`.
+
+### 3. Performance & Optimization
+
+- Use `const` constructors everywhere possible — this is not a suggestion, it is mandatory.
+- Minimize widget rebuilds: use `BlocSelector` or `BlocBuilder` with `buildWhen` to rebuild only what changed.
+- Avoid expensive operations in `build()` methods — no filtering, sorting, or formatting inside build.
+- Use `ListView.builder` / `GridView.builder` for lists — never render all items at once.
+- Cache network responses appropriately. Avoid redundant API calls.
+- Optimize images: use proper formats (WebP), cache with `cached_network_image`, and specify dimensions.
+- Avoid unnecessary `setState` calls and deep widget trees. Decompose large widgets into smaller, focused components.
+- Use `RepaintBoundary` to isolate expensive paint operations.
+- Lazy-load features and data — don't load what the user hasn't requested.
+- Profile before optimizing: use Flutter DevTools to identify actual bottlenecks, not assumed ones.
+- Prefer `ValueNotifier` / `ValueListenableBuilder` for simple local state that doesn't need Cubit.
+
+These three pillars apply to EVERY piece of code: features, tests, utilities, configurations. No exceptions.
+
 ## Core Stack (Always Use)
 
 | Technology | Package | Purpose |
@@ -43,10 +89,17 @@ Some steering files auto-load when matching files are in context. **For new feat
 - Use `get_it` for dependency injection
 - Use `Cubit` for state (use `Bloc` only when events audit trail needed)
 - Use `easy_localization` with `.tr()` for all user-facing strings
-- Use `const` constructors everywhere possible
-- Use `freezed` for state classes
+- Use `const` constructors everywhere possible — treat missing `const` as a bug
+- Use `freezed` for state classes and data models
 - Write ALL code comments in English
 - Follow Effective Dart style guide
+- Apply SOLID principles in every class and function
+- Validate all user input and external data
+- Handle errors explicitly with typed failures — never swallow exceptions silently
+- Use `BlocBuilder` with `buildWhen` or `BlocSelector` to minimize rebuilds
+- Store secrets in secure storage, never in source code
+- Document all public APIs with dartdoc
+- Run `flutter analyze` with zero warnings before considering code complete
 
 ### NEVER
 
@@ -54,6 +107,11 @@ Some steering files auto-load when matching files are in context. **For new feat
 - Never use `setState` in complex widgets
 - Never hardcode user-facing strings
 - Never write comments in non-English languages
+- Never hardcode API keys, tokens, or secrets in source code
+- Never log sensitive data (tokens, passwords, PII)
+- Never ignore caught exceptions without proper handling or logging
+- Never perform expensive operations inside `build()` methods
+- Never skip input validation on data from external sources
 
 ## Quick Templates
 
@@ -74,16 +132,26 @@ class FeatureState with _$FeatureState {
 }
 
 class FeatureCubit extends Cubit<FeatureState> {
+  /// Creates a [FeatureCubit] with the given [repository].
   FeatureCubit(this._repository) : super(const FeatureState.initial());
+
   final FeatureRepository _repository;
 
+  /// Loads feature data from the repository.
+  ///
+  /// Emits [FeatureState.loading] while fetching, then
+  /// [FeatureState.loaded] on success or [FeatureState.error] on failure.
   Future<void> load() async {
     emit(const FeatureState.loading());
     try {
       final data = await _repository.fetch();
       emit(FeatureState.loaded(data));
-    } catch (e) {
-      emit(FeatureState.error(e.toString()));
+    } on NetworkException catch (e) {
+      emit(FeatureState.error(e.userFriendlyMessage));
+    } on Exception catch (e, stackTrace) {
+      // Log error internally — never expose raw details to the user
+      debugLog('FeatureCubit.load failed', error: e, stackTrace: stackTrace);
+      emit(const FeatureState.error('An unexpected error occurred'));
     }
   }
 }
